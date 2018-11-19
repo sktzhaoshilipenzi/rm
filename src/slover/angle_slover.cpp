@@ -53,7 +53,7 @@ bool AngleSolver::getAngle(const cv::RotatedRect & rect, double & angle_x, doubl
     if (rect.size.height < 1)
         return false;
 
-// get 3D positon in camera coordinate
+//  get 3D positon in camera coordinate
 //    double wh_ratio = width_target/height_target;
 //     RotatedRect adj_rect(rect.center, Size2f(rect.size.width, rect.size.width/wh_ratio), rect.angle);
 //    vector<Point2f> target2d;
