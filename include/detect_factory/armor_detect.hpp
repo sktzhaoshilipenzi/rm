@@ -34,7 +34,7 @@ class ArmorDetector
 {
 public:
     ArmorDetector() {
-		init_armorHist("../config/armor_11414.jpg", "../config/armor2ev-3.jpg"); // load big armor
+	//	init_armorHist("../config/armor_11414.jpg", "../config/armor2ev-3.jpg"); // load big armor
 		svm_big = StatModel::load<SVM>("../config/big_armor_model.yml");
 		svm_small = StatModel::load<SVM>("../config/armor_model.yml");
 	};

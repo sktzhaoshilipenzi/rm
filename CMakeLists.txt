@@ -12,7 +12,7 @@ message(STATUS "This is Robomaster Vision program:")
 
 set(CMAKE_BUILE_TYPE RELEASE) 
 
-# using C++11
+#  using C++11
 set(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c++11 -pthread")
 
 # Find OpenCV
