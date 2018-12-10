@@ -12,7 +12,11 @@ message(STATUS "This is Robomaster Vision program:")
 
 set(CMAKE_BUILE_TYPE RELEASE) 
 
+<<<<<<< HEAD
 #  using C++11
+=======
+# using C++11
+>>>>>>> f7f7de13cfc88b33e34e8c4cb9f01b70dfd5aafe
 set(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c++11 -pthread")
 
 # Find OpenCV
@@ -50,4 +54,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/common)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/detect_factory)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/slover)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/driver)
+<<<<<<< HEAD
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/utility)
+=======
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/utility)
+>>>>>>> f7f7de13cfc88b33e34e8c4cb9f01b70dfd5aafe
