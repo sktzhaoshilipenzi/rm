@@ -43,10 +43,13 @@ public:
         recorder_time = std::chrono::steady_clock::now();
        std::vector<float> Pre_vels_(9);
        list_vx=Pre_vels_;
+       std::vector<float> Pre_z(7);
+       list_z=Pre_z;
+       list_z_copy=Pre_z;
     }
     void   set_kalman_seed(cv::KalmanFilter km){km_=km;};
     double point_dist(const cv::Point2f & p1, const cv::Point2f & p2){ return std::sqrt((p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y)); }
-    void kalman_predict(cv::Point2f &last_point,cv::KalmanFilter &klaman,vision_mul::armor_info &armor_bf_predict,vision_mul::armor_info &armor_predict,bool &flag);
+    void kalman_predict(cv::Point2f &last_point,cv::KalmanFilter &klaman,vision_mul::armor_info &armor_bf_predict,vision_mul::armor_info &armor_predict,bool &flag,float realxdiff,float realydiff,cv::RotatedRect &real_rect);
     vision_mul::armor_pos SlectFinalArmor(std::vector<vision_mul::armor_info> &armors, AngleSolver& angle_slover, AngleSolverFactory& angle_slover_factory,cv::Mat&);
     void setLastResult(/*vision_mul::armor_info last_armor,*/ vision_mul::armor_pos last_pos, double time)
     {
@@ -68,6 +71,8 @@ public:
         recorder_time = std::chrono::steady_clock::now();
     }
     float PreFilter(float Pre_vel);
+    float preFilter_for_z(float Pre_z);
+    float get_midum_z();
     void clear(){
         //history_armor.clear();
         //history_time.clear();
@@ -79,13 +84,18 @@ public:
         }
         
     }
+    short set_current_yaw_v(short a)
+    {current_yaw_v=a;}
+    short set_current_pitch_v(short a)
+    {current_pitch_v=a;}
     float cal_two_point_dis(cv::Point2f point1,cv::Point2f point2)
     {return  sqrt((point1.x-point2.x)*(point1.x-point2.x)+(point1.y-point2.y)*(point1.y-point2.y));}
     std::chrono::steady_clock::time_point recorder_time;
 
     // std::list<vision_mul::armor_info> history_armor;
     std::list<vision_mul::armor_pos> history_pos;
-    
+    short current_pitch_v;
+    short current_yaw_v;
     std::list<double> history_time;
     int history_size;
     int k;//滤波初始化检测因子
@@ -99,10 +109,13 @@ public:
     cv::Point2f his_last_point;
     std::vector<float> list_vx;
     std::vector<float> list_vx_copy;
+    std::vector<float> list_z;
+    std::vector<float> list_z_copy;
     float max_vx;
     float op_max_vx;
     float his_max_vx;
-   
+    vision_mul::armor_info last_armorinfo;
+    int tiaobian_cnt;
 };
 
 } // namespace slover

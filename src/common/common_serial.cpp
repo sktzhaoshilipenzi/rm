@@ -21,7 +21,8 @@ namespace serial_mul
 CLinuxSerial serial(0);
 short Yaw    = 0;
 short Pitch  = 0;
-
+short yaw_v  = 0;
+short pitch_v= 0;
 short get_yaw() 
 {
     short a = Yaw;
@@ -32,21 +33,37 @@ short get_pitch()
     short b = Pitch;
     return b;
 }
-
+short get_pitchv()
+{
+    short a=pitch_v;
+    float b=float(a);
+    printf("%fpitch_v",b);
+    return a;
+    
+}
+short get_yawv()
+{
+    short b=yaw_v;
+    float a=float(b);
+    printf("%fyaw_v",a);
+    return b;
+}
 void listen2car()
 {
     while(1)
     {
-        unsigned char data[7];// = {0xDA,
+        unsigned char data[11];// = {0xDA,
                               //   0x00,0x00,  // Yaw
                               //   0x00,0x00,  // Pitch
                               //   0xDB};
-        serial.ReadData(data, 7);
+        serial.ReadData(data, 11);
         // 这里可能需要一个标志位,告诉我旋转...
-        if (data[0] == 0xDA && data[6] == 0xDB)
+        if (data[0] == 0xDA && data[10] == 0xDB)
         {
             Yaw   = (data[1]<<8) + data[2];
             Pitch = (data[3]<<8) + data[4];
+            yaw_v = (data[5]<<8)+data[6];
+            pitch_v=(data[7]<<8)+data[8];
         }
 #ifdef show_serial_listen
       //  std::cout << "陀螺仪\tYaw: "<< Yaw/100.0 << "\tPitch: "<< Pitch/100.0 << std::endl;

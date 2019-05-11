@@ -119,7 +119,7 @@ bool AngleSolver::getAngle_rect(const cv::Rect & rect, double & angle_x, double 
 }
 
 void AngleSolver::tranformationCamera2PTZ(const cv::Mat & pos, cv::Mat & transed_pos){
-    transed_pos = rot_camera2ptz * pos - trans_camera2ptz;
+    transed_pos =  pos - trans_camera2ptz;
 }
 
 void AngleSolver::adjustPTZ2Barrel(const cv::Mat & pos_in_ptz, double & angle_x, double & angle_y, double bullet_speed){
@@ -127,11 +127,11 @@ void AngleSolver::adjustPTZ2Barrel(const cv::Mat & pos_in_ptz, double & angle_x,
     double down_t = 0.0;
     if (bullet_speed > 10e-3)
         down_t = _xyz[2] / 100.0 / bullet_speed;
-    double offset_gravity = 0.5 * 9.8 * down_t * down_t * 100;
+    double offset_gravity =0;//0.5 * 9.8 * down_t * down_t * 100;
     double xyz[3] = {_xyz[0], _xyz[1] - offset_gravity, _xyz[2]};
     double alpha = 0.0, theta = 0.0;
 
-    alpha = asin(offset_y_barrel_ptz/sqrt(xyz[1]*xyz[1] + xyz[2]*xyz[2]));
+    alpha =0; //asin(offset_y_barrel_ptz/sqrt(xyz[1]*xyz[1] + xyz[2]*xyz[2]));
     if(xyz[1] < 0){
         theta = atan(-xyz[1]/xyz[2]);
         angle_y = -(alpha+theta);  // camera coordinate
@@ -145,17 +145,19 @@ void AngleSolver::adjustPTZ2Barrel(const cv::Mat & pos_in_ptz, double & angle_x,
         angle_y = (theta-alpha);   // camera coordinate
     }
     angle_x = atan2(xyz[0], xyz[2]);
-    //double dist=2*abs(xyz[2]/cos(angle_x));
+   // double dist=2*abs(xyz[2]/cos(angle_x));
     //double angle_x_cor=asin(7.5/dist);// 7.5:ptz_camera_x
     //angle_x=angle_x+angle_x_cor;
     //if(xyz[2]>=150)
-    //angle_y=angle_y-3.1415926*(0.01*xyz[2]-0.5)*(0.01*xyz[2]-0.5)*(0.001*xyz[2])/180;//
+   /* angle_y=angle_y+3.1415926*(0.01*xyz[2])*(0.001*xyz[2])/180;//
+    angle_y+=3.1415926*4/180;*/
     //else
     //angle_y=angle_y+3.1415926*(1.5-0.01*xyz[2])*(1.5-0.01*xyz[2])*(0.001*xyz[2])/180;
     
     //cout << "angle_x: " << angle_x << "\tangle_y: " << angle_y <<  "\talpha: " << alpha << "\ttheta: " << theta << endl;
     angle_x = angle_x * 180 / 3.1415926;
     angle_y = angle_y * 180 / 3.1415926;
+    //angle_y+=5;
 }
 
 void AngleSolver::getTarget2dPoinstion(const cv::RotatedRect & rect, std::vector<cv::Point2f> & target2d, const cv::Point2f & offset){

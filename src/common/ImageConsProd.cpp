@@ -36,7 +36,7 @@ IN THE SOFTWARE.
 #include "utility/video_recoder.h"
 #include "utility/debug_utility.hpp"
 
- #define USE_VIDEO
+ //#define USE_VIDEO
 
 namespace autocar
 {
@@ -90,7 +90,11 @@ void ImageConsProd::ImageConsumer()
 
         short current_yaw = serial_mul::get_yaw();
         short current_pitch = serial_mul::get_pitch();
-
+        short pitch_v= serial_mul::get_pitchv();
+        short yaw_v=serial_mul::get_yawv();
+        armor_recorder.set_current_pitch_v(pitch_v);
+        armor_recorder.set_current_yaw_v(yaw_v);
+        if(armor_recorder.tiaobian_cnt!=5){armor_recorder.tiaobian_cnt--;}
         std::cout << "vision_mul: " << current_yaw << ", " << current_pitch << std::endl;
       //  angle_slover.set_current_pitch(current_pitch);
         if (armor_detector.detect(frame_forward, multi_armors)
@@ -119,6 +123,7 @@ void ImageConsProd::ImageConsumer()
         {
             armor_recorder.miss_detection_cnt = 0;
             armor_recorder.setLastResult(armor_pos_, record_time);
+            armor_recorder.preFilter_for_z(armor_pos_.angle_z);
         }
         else {
             armor_recorder.miss_detection_cnt++;

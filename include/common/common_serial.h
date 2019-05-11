@@ -21,7 +21,8 @@ namespace serial_mul
 
 short get_yaw();
 short get_pitch();
-
+short get_pitchv();
+short get_yawv();
 void listen2car();
 /**
  * @brief: 向串口发布armor_pos信息, 单摄像头版本

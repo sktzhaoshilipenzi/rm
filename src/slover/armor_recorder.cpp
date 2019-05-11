@@ -54,16 +54,45 @@ float Armor_recorder::PreFilter(float Pre_vel)
     
     
   }
+float Armor_recorder::preFilter_for_z(float Pre_z)
+{list_z[0] = list_z[1];
+    list_z[1] = list_z[2];
+    list_z[2] = list_z[3];
+    list_z[3] = list_z[4];
+    list_z[4] = list_z[5];
+    list_z[5] = list_z[6];
+    list_z[6] = Pre_z;
 
-void Armor_recorder::kalman_predict(cv::Point2f &last_point,cv::KalmanFilter &klaman,vision_mul::armor_info &armor_bf_predict,vision_mul::armor_info &armor_predict,bool &flag)
-{   cv::Mat processNoise(4, 1, CV_32F);   
+    list_z_copy = list_z;
+
+    
+    
+    
+
+}
+float Armor_recorder::get_midum_z()
+{ sort(list_z_copy.begin(), list_z_copy.end(), comp);
+    // ROS_ERROR("%d", filter_cnt%9);
+   // printf("\n%f==取值===\n",list_z_copy[3]);
+    return list_z_copy[3];
+ 
+}
+void Armor_recorder::kalman_predict(cv::Point2f &last_point,cv::KalmanFilter &klaman,vision_mul::armor_info &armor_bf_predict,vision_mul::armor_info &armor_predict,bool &flag,float realxdiff,float realydiff,cv::RotatedRect &real_rect)
+{   cv::Point2f relative_point=armor_bf_predict.rect.center;
+    real_rect.size=armor_bf_predict.rect.size;
+    real_rect.center=cv::Point2f(relative_point.x+realxdiff,relative_point.y+realydiff);
+    real_rect.center=cv::Point2f(relative_point.x,relative_point.y);
+    real_rect.angle=armor_bf_predict.rect.angle;
+    cv::Point2f real_point=real_rect.center;
+    cv::Mat processNoise(4, 1, CV_32F);   
     flag=true;
     if(last_point.x==0)
     {flag=false;
      max_vx=0;
      op_max_vx=0;
      his_max_vx=0;}
-    if(abs(last_point.x-armor_bf_predict.rect.center.x)>=0.3*armor_bf_predict.rect.size.width)
+    if(abs(last_point.x-real_point.x)>=0.8*real_rect.size.width||
+       abs(last_point.y-real_point.y)>=0.3*real_rect.size.height)
     {flag =false;
      //k=0;
      max_vx=0;
@@ -75,7 +104,7 @@ void Armor_recorder::kalman_predict(cv::Point2f &last_point,cv::KalmanFilter &kl
   //   {his_last_point=last_point;}
    // if(last_point.x==0&&his_last_point.x!=0)
    // last_point=his_last_point;
-    if(k>=10)
+    if(k>=6)
     {
         k=0;
         max_vx=0;
@@ -83,9 +112,9 @@ void Armor_recorder::kalman_predict(cv::Point2f &last_point,cv::KalmanFilter &kl
         his_max_vx=0;
     }
    // int predict_frame_dalay=5;  //反应延迟
-    cv::Point2f now_point=armor_bf_predict.rect.center;
+    
     cv::Mat measurement= cv::Mat::zeros(2, 1, CV_32F);
-    measurement=(cv::Mat_<float>(2,1)<<now_point.x,now_point.y);
+    measurement=(cv::Mat_<float>(2,1)<<real_point.x,real_point.y);
     klaman.transitionMatrix = (cv::Mat_<float>(4,4) << 
                                            1,0,1,0,
                                            0,1,0,1,
@@ -101,8 +130,8 @@ float ydiff=0;
 float xdiff=0;
 int scale=armor_bf_predict.state;
 if(last_point.x!=0){
- xdiff=scale*scale*(now_point.x-last_point.x);
- ydiff=scale*scale*(now_point.y-last_point.y);}
+ xdiff=(real_point.x-last_point.x);
+ ydiff=(real_point.y-last_point.y);}
  //printf("xdiff---------%f---------\n",xdiff);
 int temp_vx=PreFilter(xdiff);
 
@@ -133,7 +162,7 @@ if(last_point.x!=0&&ydiff!=0)
 
 
 
- klaman.statePost=(cv::Mat_<float>(4,1)<<now_point.x,now_point.y,xdiff,ydiff);
+ klaman.statePost=(cv::Mat_<float>(4,1)<<real_point.x,real_point.y,xdiff,ydiff);
  cv::Mat prediction=klaman.predict();
  k++; 
 // cv::Mat measurement = cv::Mat::zeros(2, 1, CV_32F);
@@ -151,18 +180,17 @@ if(last_point.x!=0&&ydiff!=0)
 
 
 cv::Point2f new_point
-(prediction.at<float>(0)+(prediction.at<float>(0)-now_point.x),//
-prediction.at<float>(1)+(prediction.at<float>(1)-now_point.y));//
-cv::Point2f new_use_point
-(prediction.at<float>(0)+3.5*(prediction.at<float>(0)-now_point.x),//
-prediction.at<float>(1)+(prediction.at<float>(1)-now_point.y));//
-if(cal_two_point_dis(new_point,now_point)>=1.5*armor_bf_predict.rect.size.width||
-   cal_two_point_dis(new_point,now_point)>=1.*armor_bf_predict.rect.size.height)
+(relative_point.x+(prediction.at<float>(0)-real_point.x),//
+ relative_point.y+(prediction.at<float>(1)-real_point.y));//
+ cv::Point2f new_use_point
+(prediction.at<float>(0)+2.5*(prediction.at<float>(0)-relative_point.x),//
+prediction.at<float>(1)+(prediction.at<float>(1)-relative_point.y));//
+if(cal_two_point_dis(new_point,relative_point)>=1.5*armor_bf_predict.rect.size.width||
+   cal_two_point_dis(new_point,relative_point)>=1.*armor_bf_predict.rect.size.height)
    flag=false;
    armor_predict.rect=cv::RotatedRect(new_use_point,armor_bf_predict.rect.size,armor_bf_predict.rect.angle);
    armor_predict.state=armor_bf_predict.state;
 
- 
     
  
 }
@@ -175,7 +203,12 @@ vision_mul::armor_pos Armor_recorder::SlectFinalArmor(std::vector<vision_mul::ar
     vision_mul::armor_pos armor_pos_;
     vision_mul::armor_pos armor_pos_predict;
     for (auto armor : armors)
-    {
+    {       if(tiaobian_cnt<0){tiaobian_cnt=5;last_armorinfo=armor;}
+            
+    if(cal_two_point_dis(armor.rect.center,last_armorinfo.rect.center)
+    >=1.2*(armor.rect.size.height+armor.rect.size.width)&&tiaobian_cnt>0)
+    {armor=last_armorinfo
+    ;tiaobian_cnt--;}
         double armor_ratio = std::max(armor.rect.size.width, armor.rect.size.height) / 
 							 std::min(armor.rect.size.width, armor.rect.size.height);
         cv::RotatedRect rect = armor.rect;
@@ -214,6 +247,7 @@ vision_mul::armor_pos Armor_recorder::SlectFinalArmor(std::vector<vision_mul::ar
                 armor_pos_.angle_z = angle_slover._distance;
             }
         } // if infantry or hero
+    last_armorinfo=armor;
     } // for
     
     vision_mul::armor_pos last_pos;
@@ -239,13 +273,24 @@ vision_mul::armor_pos Armor_recorder::SlectFinalArmor(std::vector<vision_mul::ar
             }
         }
        // if(detect_cnt>=3)
-
-        kalman_predict(last_dst_point,km_, armor_vect[idx],armor_after_pr,check); 
-      
-        last_dst_point=armor_vect[idx].rect.center;
+       float rea_x_diff;
+       float rea_y_diff;
+        float suitz=this->get_midum_z();
+        if(suitz!=0){
+        rea_x_diff=0.15*0.01*suitz*current_yaw_v*976.5190/suitz;
+        rea_y_diff=0.15*0.01*suitz*current_pitch_v*976.0805/suitz;}
+        else 
+        rea_x_diff=rea_y_diff=0;
+        cv::RotatedRect real_rect_;
+        kalman_predict(last_dst_point,km_, armor_vect[idx],armor_after_pr,check,rea_x_diff,rea_y_diff,real_rect_); 
+        last_dst_point=real_rect_.center;
+        //last_dst_point=armor_vect[idx].rect.center;
+        draw_rotated_rect(src,real_rect_,cv::Scalar(255,255,0),2);
         draw_rotated_rect(src, armor_vect[idx].rect,cv::Scalar(0,255,255),2);
-        
-        if (check!=false){draw_rotated_rect(src, armor_after_pr.rect,cv::Scalar(255,0,255),2);
+       
+        if (check!=false){
+        draw_rotated_rect(src, armor_after_pr.rect,cv::Scalar(255,0,255),2);
+       
 #ifdef use_predict            
         double armor_ratio = std::max(armor_after_pr.rect.size.width, armor_after_pr.rect.size.height) / 
 							 std::min(armor_after_pr.rect.size.width, armor_after_pr.rect.size.height);

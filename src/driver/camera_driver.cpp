@@ -36,7 +36,7 @@ bool camera_driver::open_camera(cv::VideoCapture & capture_camera_forward , std:
         std::cout<<"Cannot open capture_camera_forward!"<<std::endl;
         return false;
     }
-    capture_camera_forward.set(CV_CAP_PROP_FOURCC,CV_FOURCC('M','J','P','G'));
+//    capture_camera_forward.set(CV_CAP_PROP_FOURCC,CV_FOURCC('M','J','P','G'));
     capture_camera_forward.set(CV_CAP_PROP_FRAME_WIDTH, 640);
     capture_camera_forward.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
     set_camera_exposure(usb_cam_id, exposure_time);
@@ -65,9 +65,9 @@ void camera_driver::set_camera_pose()
     std::cout << "Distortion_Coefficients Size: " << dist_coeffs.size() << std::endl;
 
     // double barrel_ptz_offset_y = 0;
-    const double overlap_dist =10*ptz_camera_z; //100000.0;
-    double theta = -atan((ptz_camera_y + barrel_ptz_offset_y)/overlap_dist);
-    
+    const double overlap_dist =100000; //100000.0;
+    double theta = -atan((ptz_camera_y + barrel_ptz_offset_y)/100000);
+    //double theta=-10;
     double r_data[] = {1,0,0,0,cos(theta),-sin(theta), 0, sin(theta), cos(theta)};
     double t_data[] = {ptz_camera_x, ptz_camera_y, ptz_camera_z}; // ptz org position in camera coodinate system
     

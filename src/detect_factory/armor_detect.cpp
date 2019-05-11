@@ -17,7 +17,6 @@
 // 方便输出一些调试信息
 #define LINE(str)  //std::cout << "Code Line:" << __LINE__ << "\t" << str << std::endl;
 #define LINE_INFO(str,str2) //std::cout << "Code Line:" << __LINE__ << "\t" << str <<":\t"<< str2 << std::endl;
-
 //#define SHOW_DEBUG_IMG  //define了之后就会显示识别处理过程中的中间图像 
 
 namespace autocar
@@ -139,7 +138,7 @@ void ArmorDetector::DetectLights(const cv::Mat &src, std::vector<cv::RotatedRect
   	 Mat lookUpTable(1, 256, CV_8U);
         uchar* p = lookUpTable.ptr();
         for( int i = 0; i < 256; ++i)
-        p[i] = saturate_cast<uchar>(pow(i / 255.0, 7.5) * 255.0);
+        p[i] = saturate_cast<uchar>(pow(i / 255.0, 3.5) * 255.0);
         Mat res = src.clone();
         LUT(src, lookUpTable, res);
    /* Mat rgb=res.clone();
@@ -174,7 +173,7 @@ cv::split(rgb, bgr_channel);*/
 	else{
 	//	cv::subtract(bgr_channel[0], bgr_channel[1], color_light);
 	//	cv::threshold(2*bgr_channel[0]-bgr_channel[1]-bgr_channel[2], binary_color_diff_img, color_diff_threshold, 255, CV_THRESH_BINARY);
-		inRange(hsvimg, Scalar(100, 135, 135), Scalar(140, 255, 255), binary_color_hsv_img);
+		inRange(hsvimg, Scalar(90, 125, 125), Scalar(150, 255, 255), binary_color_hsv_img);
 		}
 
   	cv::Mat binary_brightness_img; // 亮度二值化
@@ -1064,30 +1063,38 @@ void ArmorDetector::FilterArmors(std::vector<armor_info> &armors,const cv::Mat &
 			int ojbk = armorToarmorTest(armors[i].rect, armors[j].rect);
 			if(ojbk == 1) is_armor[i] = false;
 			else if(ojbk == 2) is_armor[j] = false;
-			if(armor_ratio1<=1.4)
+			if(armor_ratio1<=1.6&&abs(armors.at(i).rect.angle)<=5)
 			{
 				is_armor[i]=false;
 			}
-			if(armor_ratio2<=1.4)
+			if(armor_ratio2<=1.6&&abs(armors.at(j).rect.angle)<=5)
 			{
 				is_armor[j]=false;
 			}
-		    if(       ((abs(armors.at(i).rect.angle)<=20&&abs(armors.at(j).rect.angle)<=10)||
-		               (abs(armors.at(i).rect.angle)<=10&&abs(armors.at(j).rect.angle)<=20))&&
-		               abs(armor_ratio1-armor_ratio2)<1&&1<=(2*dis)/(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)
+		    /*if(       ((abs(armors.at(i).rect.angle)<=30&&abs(armors.at(j).rect.angle)<=10)||
+		               (abs(armors.at(i).rect.angle)<=10&&abs(armors.at(j).rect.angle)<=30))&&
+		               abs(armor_ratio1-armor_ratio2)<1&&0.9<=(2*dis)/(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)
 					   +std::max(armors.at(j).rect.size.width, armors.at(j).rect.size.height))&&
 					   (2*dis)/( std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+ 
 					   std::max(armors.at(j).rect.size.width, armors.at(j).rect.size.height))<=1.3)
 					   {
 						   if(armors.at(i).rect.angle*armors.at(j).rect.angle<0)
-						  {if(armors.at(i).rect.angle>0)
-						  {is_armor[i]=false;/*printf("临近筛掉%d",i);*/}
+						  {if(abs(armors.at(i).rect.angle)>=20&&abs(armors.at(i).rect.angle)<=30&&abs(armors.at(j).rect.angle)<=10)
+						  {//is_armor[i]=false;
+						  #ifdef SHOW_DEBUG_IMG
+						  printf("\n=====临近筛掉%d\n",i);
+						  #endif
+						  }
 						   else
-						   {is_armor[j]=false;/*printf("临近筛掉%d",j);*/}
+						   {//is_armor[j]=false;
+						   #ifdef SHOW_DEBUG_IMG
+						   printf("\n====临近筛掉%d\n",j);
+						    #endif
+						   }
 						   }
 						   
 					   }
-
+        */
 		}
 	}
 
@@ -1130,7 +1137,7 @@ void ArmorDetector::FilterArmors(std::vector<armor_info> &armors,const cv::Mat &
 	}
 	armors = filte_rects;*/
 
-/*if(armors.size()<6){
+/*
 double dis;
 #pragma omp parallel
   	for (int i = 0; i < armors.size(); i++) {
@@ -1185,8 +1192,9 @@ double dis;
 		if(is_armor[i]) filte_rects.push_back(armors[i]);
 	}
 	armors = filte_rects;
-}
 */
+
+
 if(armors.size()>0){
 	std::vector<double> armor_score(armors.size(), 0);
 	std::vector<double> armor_ratio_vec(armors.size(),0);
@@ -1215,24 +1223,42 @@ if(armors.size()>0){
 		#endif
 
 	float area_score;
-	if (width_average>=32){area_score=-30*armors.at(i).rect.size.area();}
+	if (width_average>=32){area_score=-5*armors.at(i).rect.size.area();}
 	else 
-	area_score=-80*armors.at(i).rect.size.area();
+	area_score=-20*armors.at(i).rect.size.area();
     armor_score[i]=area_score;
+	#ifdef SHOW_DEBUG_IMG
+	printf("\n%darea_score%f\n",i,area_score);
+	#endif
 	double size_check;
-	if(width_average>=20){size_check=2.33;}
-	else size_check=2.76;
-	              
-				  float sizescore;
-				  if(pow(55/abs(armor_ratio_vec[i]-size_check),2)>=21000)
+	size_check=
+	-4.203*std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)*
+	std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+
+	0.0383*std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+
+	1.2861;
+	//printf("\n=====sizecheck%f========\n",size_check);
+	//if(width_average>=20){size_check=2.33;}else size_check=2.76;
+           
+	float sizescore;
+	if(armor_ratio_vec[i]<=size_check)
+	{
+				  if(pow(100/abs(armor_ratio_vec[i]-size_check),2)>=21000)
 				  sizescore=21000;
-				  else sizescore=pow(55/abs(armor_ratio_vec[i]-size_check),2);
+				  else sizescore=pow(100/abs(armor_ratio_vec[i]-size_check),2);
 				  armor_score[i]+=sizescore;
+				                       }
+	else
+	{
+                  if(pow(30/abs(armor_ratio_vec[i]-size_check),2)>=21000)
+				  sizescore=21000;
+				  else sizescore=pow(30/abs(armor_ratio_vec[i]-size_check),2);
+				  armor_score[i]+=sizescore;
+	}
 				  float scoreangle;
-				  if (10*pow(110/abs(armors.at(i).rect.angle),2)>=26000)
+				  if (10*pow(130/abs(armors.at(i).rect.angle),2)>=26000)
 				   scoreangle=26000;
 				  else 
-                    scoreangle=10*pow(110/abs(armors.at(i).rect.angle),2);
+                    scoreangle=10*pow(130/abs(armors.at(i).rect.angle),2);
 					armor_score[i]+=scoreangle;
 				#ifdef SHOW_DEBUG_IMG
 				   printf("\n第%dsize %f area %f angle %f\n",i,sizescore,
@@ -1243,10 +1269,10 @@ if(armors.size()>0){
 			    #endif
 				   float xdiffscore;
 				   //if(abs(history_point.x-armors.at(i).rect.center.x)!=0||(history_point.y-armors.at(i).rect.center.y)!=0)
-				   if(100000/POINT_DIST(history_point,armors.at(i).rect.center)>=20000)
-				       xdiffscore=20000;
+				   if(150000/POINT_DIST(history_point,armors.at(i).rect.center)>=40000)
+				       xdiffscore=40000;
 					else
-					xdiffscore=100000/POINT_DIST(history_point,armors.at(i).rect.center);
+					xdiffscore=150000/POINT_DIST(history_point,armors.at(i).rect.center);
 					
 					
 					   if(history_point.x!=0){armor_score[i]+=xdiffscore;
@@ -1254,17 +1280,17 @@ if(armors.size()>0){
 				   printf("\n第%dxdiff_add_score%f\n",i,xdiffscore);
 			    #endif
 				   }
-				   if(abs(his_size-armor_ratio_vec[i])!=0){
+				   
 					   double size_diff_score;
-					   if(300/abs(his_size-armor_ratio_vec[i])<10000)
-					   size_diff_score=300/abs(his_size-armor_ratio_vec[i]);
+					   if(1000/abs(his_size-armor_ratio_vec[i])<20000)
+					   size_diff_score=1000/abs(his_size-armor_ratio_vec[i]);
 				       else 
-					   size_diff_score=10000;
+					   size_diff_score=20000;
 					   armor_score[i]+=size_diff_score;
 				#ifdef SHOW_DEBUG_IMG 
 				printf("第%darmorratio diff score %f",i,size_diff_score);
 				#endif
-				   }
+				  
 	}
 	
 	std::vector<double> dis_score(armors.size(), 0);
@@ -1275,15 +1301,30 @@ if(armors.size()>0){
 			   
 			  double dis = abs(POINT_DIST(armors.at(i).rect.center,armors.at(j).rect.center));
 		
-		    if(dis<=1.3*(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+ 
+		    if(dis<=1.6*(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+ 
+					   std::max(armors.at(j).rect.size.width, armors.at(j).rect.size.height))&&
+					   dis>=1*(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+ 
 					   std::max(armors.at(j).rect.size.width, armors.at(j).rect.size.height)))
 					   {
-						   if(armor_ratio_vec[i]>4&&armor_ratio_vec[j]<4)
-						   armor_score[i]-=20000;
-						   else if(armor_ratio_vec[j]>4&&armor_ratio_vec[i]<4)
-						   armor_score[j]-=20000;
+						   if(armor_ratio_vec[i]>3.2&&armor_ratio_vec[j]<2.5)
+						   armor_score[i]-=50000;
+						   else if(armor_ratio_vec[j]>3.2&&armor_ratio_vec[i]<2.5)
+						   armor_score[j]-=50000;
 					   }
-
+			if(dis<1*(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+ 
+					   std::max(armors.at(j).rect.size.width, armors.at(j).rect.size.height))&&
+					   dis>=0.5*(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+ 
+					   std::max(armors.at(j).rect.size.width, armors.at(j).rect.size.height)))
+					   {
+						   if(armor_ratio_vec[i]>3.2&&armor_ratio_vec[j]<2.5)
+						   armor_score[i]-=100000;
+						   else if(armor_ratio_vec[j]>3.2&&armor_ratio_vec[i]<2.5)
+						   armor_score[j]-=100000;
+					   }
+			#ifdef SHOW_DEBUG_IMG
+             printf("\n两块装甲距离比%f\n",dis/(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)+ 
+					   std::max(armors.at(j).rect.size.width, armors.at(j).rect.size.height)));
+			#endif 
             dis_score[i]+=abs((150000/dis)/ armors.size());
 			dis_score[j]+=abs((150000/dis)/ armors.size());	
 
@@ -1328,6 +1369,9 @@ for( int i = 0; i < armors.size();i++)
 							  std::min(armors.at(i).rect.size.width, armors.at(i).rect.size.height);
 		 filte_rects.push_back(armors[i]);
 		// printf("最终选定%d",i);
+		#ifdef SHOW_DEBUG_IMG
+		printf("\n======宽度%f尺寸%f======\n",std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height),armor_ratio);
+		 #endif
 		 history_point=armors[i].rect.center;
 		 his_size=armor_ratio;}
 	}
