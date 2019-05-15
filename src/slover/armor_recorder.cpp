@@ -13,7 +13,7 @@ namespace autocar
 {
 namespace slover
 {
-#define use_predict
+//#define use_predict
 #define show_src_rect
 
 const int bullet_speed = 18;     
@@ -203,12 +203,12 @@ vision_mul::armor_pos Armor_recorder::SlectFinalArmor(std::vector<vision_mul::ar
     vision_mul::armor_pos armor_pos_;
     vision_mul::armor_pos armor_pos_predict;
     for (auto armor : armors)
-    {       if(tiaobian_cnt<0){tiaobian_cnt=5;last_armorinfo=armor;}
+    {     /*  if(tiaobian_cnt<0){tiaobian_cnt=5;last_armorinfo=armor;}
             
     if(cal_two_point_dis(armor.rect.center,last_armorinfo.rect.center)
     >=1.2*(armor.rect.size.height+armor.rect.size.width)&&tiaobian_cnt>0)
     {armor=last_armorinfo
-    ;tiaobian_cnt--;}
+    ;tiaobian_cnt--;}*/
         double armor_ratio = std::max(armor.rect.size.width, armor.rect.size.height) / 
 							 std::min(armor.rect.size.width, armor.rect.size.height);
         cv::RotatedRect rect = armor.rect;

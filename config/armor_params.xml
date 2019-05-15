@@ -1,16 +1,16 @@
 <?xml version="1.0"?>
 <opencv_storage>
     <!--Parameter for Enemy Color, 0(default) means for red, otherwise blue-->
-    <enemy_color>0</enemy_color>
-    <video_id>../video/two.avi</video_id>
+    <enemy_color>1</enemy_color>
+    <video_id>../video/12日1.mp4</video_id>
 
     <!--Parameter for Debug--> 
     <show_image>1</show_image>
     <save_result>0</save_result>
 
     <!--Parameter for Armor Detection System-->
-    <light_threshold_val>170</light_threshold_val>
-    <light_threshold_val_for_red>170</light_threshold_val_for_red>
+    <light_threshold_val>200</light_threshold_val>
+    <light_threshold_val_for_red>190</light_threshold_val_for_red>
     <binary_color_diff_threshold>100</binary_color_diff_threshold>
     <red_color_diff>40</red_color_diff>
     <blue_color_diff>70</blue_color_diff>
