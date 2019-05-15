@@ -36,7 +36,7 @@ IN THE SOFTWARE.
 #include "utility/video_recoder.h"
 #include "utility/debug_utility.hpp"
 
- //#define USE_VIDEO
+ #define USE_VIDEO
 
 namespace autocar
 {
