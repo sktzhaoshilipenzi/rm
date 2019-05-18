@@ -54,7 +54,14 @@ public:
         vision_mul["save_result"] >> save_result;
         
         vision_mul["video_id"] >> video_name;
-     
+        cv::FileStorage fz(param_file, cv::FileStorage::READ);
+        if(!fz.isOpened())
+            std::cout << "ImageConsProd 构造函数: Cannot open camera_param.xml, please check if the file is exist." << std::endl;
+        cv::FileNode root2 = fz.root();
+
+        cv::FileNode vision_mul2 = root2["vision_mul"];
+        vision_mul2["cam_id"] >> usb_cam_id;
+        vision_mul2["exposure_time"] >> exposure_time;
         #ifdef SHOW_DEBUG
         std::cout << "show_image: " << show_image:<< std::endl;
         std::cout << "save_result: " << save_result << std::endl;
@@ -66,6 +73,8 @@ public:
     
 public:
     armor_pos armor_pos_;     // 装甲板信息
+    float exposure_time;
+    std::string usb_cam_id;
 private: 
     bool show_image;          // 调试选项
     bool save_result;         // 调试选项
@@ -73,6 +82,7 @@ private:
     std::string video_name;   // 打开视频路径
     std::chrono::steady_clock::time_point speed_test_start_begin_time; // 记时
     std::list<double> history_yaw;
+    
 };
 
 } // namespace vision_mul

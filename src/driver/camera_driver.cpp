@@ -36,7 +36,7 @@ bool camera_driver::open_camera(cv::VideoCapture & capture_camera_forward , std:
         std::cout<<"Cannot open capture_camera_forward!"<<std::endl;
         return false;
     }
-//    capture_camera_forward.set(CV_CAP_PROP_FOURCC,CV_FOURCC('M','J','P','G'));
+    capture_camera_forward.set(CV_CAP_PROP_FOURCC,CV_FOURCC('M','J','P','G'));
     capture_camera_forward.set(CV_CAP_PROP_FRAME_WIDTH, 640);
     capture_camera_forward.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
     set_camera_exposure(usb_cam_id, exposure_time);

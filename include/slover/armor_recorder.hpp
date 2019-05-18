@@ -46,6 +46,8 @@ public:
        std::vector<float> Pre_z(7);
        list_z=Pre_z;
        list_z_copy=Pre_z;
+       list_x=Pre_vels_;
+       list_x_copy=list_x;
     }
     void   set_kalman_seed(cv::KalmanFilter km){km_=km;};
     double point_dist(const cv::Point2f & p1, const cv::Point2f & p2){ return std::sqrt((p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y)); }
@@ -70,9 +72,11 @@ public:
         }
         recorder_time = std::chrono::steady_clock::now();
     }
-    float PreFilter(float Pre_vel);
+    float PreFilter(float Pre_vel,float x_filter);
+    
     float preFilter_for_z(float Pre_z);
     float get_midum_z();
+    float get_medum_x(){return list_x_copy[4];};
     void clear(){
         //history_armor.clear();
         //history_time.clear();
@@ -111,11 +115,15 @@ public:
     std::vector<float> list_vx_copy;
     std::vector<float> list_z;
     std::vector<float> list_z_copy;
+    std::vector<float> list_x;
+    std::vector<float> list_x_copy;
     float max_vx;
     float op_max_vx;
     float his_max_vx;
     vision_mul::armor_info last_armorinfo;
     int tiaobian_cnt;
+    int check_rota_cnt;
+    float last_angle;
 };
 
 } // namespace slover

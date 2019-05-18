@@ -138,7 +138,7 @@ void ArmorDetector::DetectLights(const cv::Mat &src, std::vector<cv::RotatedRect
   	 Mat lookUpTable(1, 256, CV_8U);
         uchar* p = lookUpTable.ptr();
         for( int i = 0; i < 256; ++i)
-        p[i] = saturate_cast<uchar>(pow(i / 255.0, 3.5) * 255.0);
+        p[i] = saturate_cast<uchar>(pow(i / 255.0, 2.5) * 255.0);
         Mat res = src.clone();
         LUT(src, lookUpTable, res);
    /* Mat rgb=res.clone();
@@ -263,7 +263,7 @@ void ArmorDetector::FilterLights(std::vector<cv::RotatedRect> &lights,const cv::
 #endif
 		}
         // 针对灯条细小的情况, 没有最大比例的判断, 较为理想的灯条
-		else if(//armor_light.size.area() >= _para.light_min_area/2&& // 1.0
+		else if(armor_light.size.area() >= _para.light_min_area&& // 1.0
 		   		 armor_light.size.area() < 100000
 				&& light_aspect_ratio >=2.5  //_para.light_max_area * src_img_.size().height * src_img_.size().width // 0.04
 		   		&& abs(angle) < _para.light_max_angle) // 与垂直的偏角17.5 , 这里是可以取消/2的,进一步细化
@@ -1369,6 +1369,7 @@ for( int i = 0; i < armors.size();i++)
 							  std::min(armors.at(i).rect.size.width, armors.at(i).rect.size.height);
 		 filte_rects.push_back(armors[i]);
 		// printf("最终选定%d",i);
+		//printf("\n----尺寸大小为%f-----\n",armor_ratio);
 		#ifdef SHOW_DEBUG_IMG
 		printf("\n======宽度%f尺寸%f======\n",std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height),armor_ratio);
 		 #endif

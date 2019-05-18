@@ -2,7 +2,7 @@
 <opencv_storage>
     <!--Parameter for Enemy Color, 0(default) means for red, otherwise blue-->
     <enemy_color>1</enemy_color>
-    <video_id>../video/12日1.mp4</video_id>
+    <video_id>../video/720.avi</video_id>
 
     <!--Parameter for Debug--> 
     <show_image>1</show_image>

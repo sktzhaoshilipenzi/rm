@@ -85,7 +85,7 @@ void publish2car(const vision_mul::armor_pos& pos, short _yaw, short _pitch)
     
     short* data_ptr = (short *)(send_bytes + 2); // 16位指针指向第一个数据
     
-    data_ptr[0] = _yaw   + static_cast<short>((pos.angle_x) * 100);
+    data_ptr[0] = _yaw   - static_cast<short>((pos.angle_x) * 100);
     data_ptr[1] = _pitch - static_cast<short>((pos.angle_y) * 100);
 
     serial.WriteData(send_bytes, 8);

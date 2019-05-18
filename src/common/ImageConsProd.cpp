@@ -27,7 +27,7 @@ IN THE SOFTWARE.
 #include <vector>
 #include "common/ImageConsProd.hpp"
 #include "driver/camera_driver.h"
-
+#include "driver/RMVideoCapture.hpp"
 #include "detect_factory/armor_detect.hpp"
 
 #include "slover/angle_slover.hpp"
@@ -35,6 +35,7 @@ IN THE SOFTWARE.
 
 #include "utility/video_recoder.h"
 #include "utility/debug_utility.hpp"
+#define BUFFER_SIZE 3
 
  //#define USE_VIDEO
 
@@ -42,13 +43,36 @@ namespace autocar
 {
 namespace vision_mul
 {
+volatile unsigned int prdIdx = 0;
+volatile unsigned int csmIdx = 0;
 
+struct ImageData {
+	cv::Mat img;             // data come from camera
+	unsigned int frame;      // 记数
+};
+
+ImageData capturedata[BUFFER_SIZE];   // Buffer of capture
+void ImageConsProd:: ImageProductor()
+{
+
+    RMVideoCapture cap(usb_cam_id.c_str(), 3); 
+	cap.setVideoFormat(1280, 720, 1);
+	cap.startStream();
+	cap.setExposureTime(false, exposure_time);
+
+	while (true) {
+		while (prdIdx - csmIdx >= BUFFER_SIZE);
+		cap >> capturedata[prdIdx % BUFFER_SIZE].img;
+		capturedata[prdIdx % BUFFER_SIZE].frame = cap.getFrameCount();
+		++prdIdx;
+	}
+}
 void ImageConsProd::ImageConsumer() 
 {   
     driver::camera_driver camera_info(param_file);
 #ifndef USE_VIDEO
     cv::VideoCapture capture_camera_forward;
-    camera_info.open_camera(capture_camera_forward, param_file);
+    //camera_info.open_camera(capture_camera_forward, param_file);
 #else
     cv::VideoCapture capture_camera_forward(video_name);
 #endif
@@ -64,7 +88,7 @@ void ImageConsProd::ImageConsumer()
 
     // 视频录制(如果打开视频，就不要视频录制)
 #ifndef USE_VIDEO
-    video_recoder recoder("../video", 640, 480);
+    video_recoder recoder("../video", 1280, 720);
 #endif
     cv::Mat frame_forward;
     cv::Mat frame_forward_src;
@@ -79,13 +103,18 @@ void ImageConsProd::ImageConsumer()
     while (true) {
         // some value reset
         speed_test_begin();
+        
         armor_pos_.reset_pos();
         multi_armors.clear();
-
+        
         // start camera
+#ifdef USE_VIDEO
         capture_camera_forward >> frame_forward;
-       
-       
+#else
+        while (prdIdx - csmIdx == 0);
+		capturedata[csmIdx % BUFFER_SIZE].img.copyTo(frame_forward);
+		++csmIdx;
+#endif
         if (save_result) frame_forward.copyTo(frame_forward_src);
 
         short current_yaw = serial_mul::get_yaw();
