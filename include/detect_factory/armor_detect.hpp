@@ -100,12 +100,13 @@ private:
 		}
 	}
 	void choose_target_from_lights(std::vector<cv::RotatedRect> &lights, std::vector<armor_info> &armor_vector);
+	void choose_target_from_lights_copy(std::vector<cv::RotatedRect> &lights, std::vector<armor_info> &armor_vector);
 	armor_info SlectFinalArmor(std::vector<armor_info> &armors);
 	void FilterArmors(std::vector<armor_info> &armors,const cv::Mat &src);
 	//void FilterArmors(cv::Mat & src, std::vector<armor_info> &armors);
-    void DetectLights(const cv::Mat &src, std::vector<cv::RotatedRect> &lights);  //, double yaw_diff = 0);
+    void DetectLights(const cv::Mat &src, std::vector<cv::RotatedRect> &lights);  
 	  
-	void FilterLights(std::vector<cv::RotatedRect> &lights,const cv::Mat &src);   //, double yaw_diff = 0);
+	void FilterLights(std::vector<cv::RotatedRect> &lights,const cv::Mat &src);   
 
 	/**
 	 * @brief: 根据装甲板不同的移动情况框选装甲板
@@ -138,7 +139,7 @@ private:
 	 */
 	float armor_svm(Mat& img_roi);
 	float small_armor_svm(Mat& img_roi);
-    float hhh(cv::RotatedRect& rect);
+    
 	float get_armor_roi(cv::RotatedRect& rect, bool visual = 0);
 private:
     param_mul::armor_param _para;	// 装甲板的参数

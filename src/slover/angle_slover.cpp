@@ -145,15 +145,19 @@ void AngleSolver::adjustPTZ2Barrel(const cv::Mat & pos_in_ptz, double & angle_x,
         angle_y = (theta-alpha);   // camera coordinate
     }
     angle_x = atan2(xyz[0], xyz[2]);
-    if(xyz[2]<=350)
-    angle_y+=3.14/180;//3.1415926*(0.01*xyz[2])*(0.001*xyz[2])/180;//
+     
+    //if(xyz[2]<=350)
+    //angle_y+=3.14/180;//3.1415926*(0.01*xyz[2])*(0.001*xyz[2])/180;//
     //angle_y+=3.1415926*4/180;*/
     //else
     //angle_y=angle_y+3.1415926*(1.5-0.01*xyz[2])*(1.5-0.01*xyz[2])*(0.001*xyz[2])/180;
-    
+    //if(xyz[2]>=300&&xyz[2]<=400)
+    //angle_y-=0.5*3.14/180;
+    //if(xyz[2]>=400)
+    //angle_y-=0.5*3.14/180;
     //cout << "angle_x: " << angle_x << "\tangle_y: " << angle_y <<  "\talpha: " << alpha << "\ttheta: " << theta << endl;
     angle_x = angle_x * 180 / 3.1415926;
-    angle_x +=2;
+   // angle_x+=2;
     angle_y = angle_y * 180 / 3.1415926;
 }
 

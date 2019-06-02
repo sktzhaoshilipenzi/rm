@@ -95,9 +95,9 @@ void ImageConsProd::ImageConsumer()
     ArmorDetector armor_detector;
     slover::Armor_recorder armor_recorder;
     KalmanFilter kem(4,2);
-    armor_recorder.set_kalman_seed(kem);
+   // armor_recorder.set_kalman_seed(kem);
     setIdentity(kem.errorCovPost, Scalar::all(1));
-    km cc;
+    //km cc;
     std::vector<armor_info> multi_armors;
 
     while (true) {
@@ -116,16 +116,18 @@ void ImageConsProd::ImageConsumer()
 		++csmIdx;
 #endif
         if (save_result) frame_forward.copyTo(frame_forward_src);
-
+       
         short current_yaw = serial_mul::get_yaw();
         short current_pitch = serial_mul::get_pitch();
         short pitch_v= serial_mul::get_pitchv();
         short yaw_v=serial_mul::get_yawv();
-        armor_recorder.set_current_pitch_v(pitch_v);
-        armor_recorder.set_current_yaw_v(yaw_v);
+       // armor_recorder.set_current_pitch_v(pitch_v);
+       // armor_recorder.set_current_yaw_v(yaw_v);
         if(armor_recorder.tiaobian_cnt!=5){armor_recorder.tiaobian_cnt--;}
-        std::cout << "vision_mul: " << current_yaw << ", " << current_pitch << std::endl;
-      //  angle_slover.set_current_pitch(current_pitch);
+        //std::cout << "vision_mul: " << current_yaw << ", " << current_pitch << std::endl;
+        //angle_slover.set_current_pitch(current_pitch);
+      //speed_test_reset();
+       // speed_test_reset();
         if (armor_detector.detect(frame_forward, multi_armors)
             && multi_armors.size())
         {
@@ -137,6 +139,7 @@ void ImageConsProd::ImageConsumer()
             armor_pos_.reset_pos();
             serial_mul::publish2car(armor_pos_, current_yaw, current_pitch); 
         }
+        // speed_test_end("det time cost = ", "ms");
         /*float tm=armor_recorder.history_time.back();
         Vec3f jiaodu;
         jiaodu[0]=armor_pos_.angle_x;
@@ -152,7 +155,7 @@ void ImageConsProd::ImageConsumer()
         {
             armor_recorder.miss_detection_cnt = 0;
             armor_recorder.setLastResult(armor_pos_, record_time);
-            armor_recorder.preFilter_for_z(armor_pos_.angle_z);
+     //       armor_recorder.preFilter_for_z(armor_pos_.angle_z);
         }
         else {
             armor_recorder.miss_detection_cnt++;
@@ -166,6 +169,7 @@ void ImageConsProd::ImageConsumer()
 
         }
         fprintf(pl,"\n");*/
+       
 		if (show_image > 0)
         {  // Point2f dst_point = Point2f(camera_info.camera_matrix.at<double>(0,2)+10*armor_pos_.angle_x, camera_info.camera_matrix.at<double>(1,2)+10*armor_pos_.angle_y);
             // show center and result
@@ -174,8 +178,9 @@ void ImageConsProd::ImageConsumer()
             char str[30];
             sprintf(str, "%.2f, %.2f, %.2fcm ,%d flag", armor_pos_.angle_x, armor_pos_.angle_y, armor_pos_.angle_z,armor_pos_.Flag);
             putText(frame_forward, str, Point(5, 20), CV_FONT_HERSHEY_COMPLEX_SMALL, 1, CV_RGB(100,205,0), 1);
+           // speed_test_reset();
             try {
-               // cvtColor(frame_forward, frame_forward,CV_RGB2GRAY);
+                //cvtColor(frame_forward, frame_forward,CV_RGB2GRAY);
 				imshow("result", frame_forward);
                 cv::waitKey(1); // 很有必要
 			}

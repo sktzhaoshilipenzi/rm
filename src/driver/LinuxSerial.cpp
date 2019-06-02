@@ -1,192 +1,195 @@
+/****************************************************************************
+ *  Copyright (C) 2019 RoboMaster.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of 
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program. If not, see <http://www.gnu.org/licenses/>.
+ ***************************************************************************/
+#define show_serial_debug
 #include "driver/LinuxSerial.hpp"
-#include <string>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <termios.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
 
-CLinuxSerial::CLinuxSerial(UINT portNo /*=1*/ , UINT baudRate /*= 115200*/ )
-{
-    InitPort(portNo, baudRate);
-}
-
-CLinuxSerial::~CLinuxSerial()
-{
-    ClosePort();
-}
-            
-
-bool CLinuxSerial::OpenPort(UINT portNo)
-{
-    char portStr[20];
-    sprintf(portStr, "/dev/ttyUSB%d", portNo);
-    m_iSerialID = open(portStr, O_RDWR);  //block mode
-    if(m_iSerialID < 0)
+SerialDevice::SerialDevice(std::string port_name,
+                           int baudrate) :
+    port_name_(port_name),
+    baudrate_(baudrate),
+    data_bits_(8),
+    parity_bits_('N'),
+    stop_bits_(1)
     {
-        printf("open serial error!\n");
-        return false;
+      while (!Init()) {
+        usleep(500000);
+      }
+      
+      #ifdef show_serial_debug
+      printf("Reconnect Success.\n");
+      #endif
     }
+
+SerialDevice::~SerialDevice() {
+  CloseDevice();
+}
+
+bool SerialDevice::Init() 
+{
+  if (OpenDevice() && ConfigDevice()) {
+    FD_ZERO(&serial_fd_set_);
+    FD_SET(serial_fd_, &serial_fd_set_);
+     #ifdef show_serial_debug
+   printf("...Serial started successfully.\n");
+     #endif
     return true;
+  } else {
+    CloseDevice();
+    return false;
+  }
 }
 
-void CLinuxSerial::ClosePort()
-{
-    close(m_iSerialID);
-    m_iSerialID= -1;
+bool SerialDevice::OpenDevice() {
+
+#ifdef __arm__
+  serial_fd_ = open(port_name_.c_str(), O_RDWR | O_NONBLOCK);
+#elif __x86_64__
+  serial_fd_ = open(port_name_.c_str(), O_RDWR | O_NOCTTY);
+#else
+  serial_fd_ = open(port_name_.c_str(), O_RDWR | O_NOCTTY);
+#endif
+
+  if (serial_fd_ < 0) {
+    #ifdef show_serial_debug
+   printf("we lost the serial port device.\n");
+    #endif
+    return false;
+  }
+
+  return true;
 }
 
-bool CLinuxSerial::InitPort(UINT portNo /*= 1*/, UINT baudRate /*= 115200*/)
-{
-    char data_bits = 8;
-    char parity_bits = 'N'; 
-    char stop_bits = 1;
-    ClosePort();
-    bool res = OpenPort(portNo);
-    if(!res)
-        return false;
-
-        int st_baud[]=
-        {
-            B4800,
-            B9600,
-            B19200,
-            B38400,
-            B57600,
-            B115200,
-            B230400,
-            B1000000,
-            B1152000,
-            B3000000,
-        };
-        int std_rate[]=
-        {
-            4800,
-            9600,
-            19200,
-            38400,
-            57600,
-            115200,
-            230400,
-            1000000,
-            1152000,
-            3000000,
-        };
-
-        int i,j;
-        struct termios newtio, oldtio;
-        /* save current port parameter */
-        if (tcgetattr(m_iSerialID, &oldtio) != 0)
-        {
-            printf("%s,%d:ERROR\n",__func__,__LINE__);
-            return -1;
-        }
-        bzero(&newtio, sizeof(newtio));
-
-        /* config the size of char */
-        newtio.c_cflag |= CLOCAL | CREAD;
-        newtio.c_cflag &= ~CSIZE;
-
-        /* config data bit */
-        switch (data_bits)
-        {
-        case 7:
-            newtio.c_cflag |= CS7;
-            break;
-        case 8:
-            newtio.c_cflag |= CS8;
-            break;
-        }
-        /* config the parity bit */
-        switch (parity_bits)
-        {
-            /* odd */
-        case 'O':
-        case 'o':
-            newtio.c_cflag |= PARENB;
-            newtio.c_cflag |= PARODD;
-            break;
-            /* even */
-        case 'E':
-        case 'e':
-            newtio.c_cflag |= PARENB;
-            newtio.c_cflag &= ~PARODD;
-            break;
-            /* none */
-        case 'N':
-        case 'n':
-            newtio.c_cflag &= ~PARENB;
-            break;
-        }
-        /* config baudrate */
-        j = sizeof(std_rate)/4;
-        for(i = 0;i < j;i ++)
-        {
-            if(std_rate[i] == baudRate)
-            {
-                /* set standard baudrate */
-                cfsetispeed(&newtio, st_baud[i]);
-                cfsetospeed(&newtio, st_baud[i]);
-                break;
-            }
-        }
-        /* config stop bit */
-        if( stop_bits == 1 )
-           newtio.c_cflag &=  ~CSTOPB;
-        else if ( stop_bits == 2 )
-           newtio.c_cflag |=  CSTOPB;
-
-        /* config waiting time & min number of char */
-        newtio.c_cc[VTIME]  = 1;
-        newtio.c_cc[VMIN] = 1;
-
-        /* using the raw data mode */
-        newtio.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);
-        newtio.c_oflag  &= ~OPOST;
-
-        /* flush the hardware fifo */
-        tcflush(m_iSerialID,TCIFLUSH);
-
-        /* activite the configuration */
-        if((tcsetattr(m_iSerialID,TCSANOW,&newtio))!=0)
-        {
-            printf("%s,%d:ERROR\n",__func__,__LINE__);
-            return -1;
-        }
-    return true;
+bool SerialDevice::CloseDevice() {
+  close(serial_fd_);
+  serial_fd_ = -1;
+  return true;
 }
 
-UINT CLinuxSerial::ReadData(UCHAR *data, UINT length)
-{
-    if(m_iSerialID < 0)
-        return 0;
-    int ret = -1;
-    if( data == NULL)
-        return 0;
+bool SerialDevice::ConfigDevice() {
+  int st_baud[] = {B4800, B9600, B19200, B38400,
+                   B57600, B115200, B230400, B921600};
+  int std_rate[] = {4800, 9600, 19200, 38400, 57600, 115200,
+                    230400, 921600, 1000000, 1152000, 3000000};
+  int i, j;
+  /* save current port parameter */
+  if (tcgetattr(serial_fd_, &old_termios_) != 0) {
+   #ifdef show_serial_debug
+    printf("fail to save current port\n");
+    #endif
+    return false;
+  }
+  memset(&new_termios_, 0, sizeof(new_termios_));
 
-    ret = read(m_iSerialID, data, length);
+  /* config the size of char */
+  new_termios_.c_cflag |= CLOCAL | CREAD;
+  new_termios_.c_cflag &= ~CSIZE;
 
+  /* config data bit */
+  switch (data_bits_) {
+    case 7:new_termios_.c_cflag |= CS7;
+      break;
+    case 8:new_termios_.c_cflag |= CS8;
+      break;
+    default:new_termios_.c_cflag |= CS8;
+      break; //8N1 default config
+  }
+  /* config the parity bit */
+  switch (parity_bits_) {
+    /* odd */
+    case 'O':
+    case 'o':new_termios_.c_cflag |= PARENB;
+      new_termios_.c_cflag |= PARODD;
+      break;
+      /* even */
+    case 'E':
+    case 'e':new_termios_.c_cflag |= PARENB;
+      new_termios_.c_cflag &= ~PARODD;
+      break;
+      /* none */
+    case 'N':
+    case 'n':new_termios_.c_cflag &= ~PARENB;
+      break;
+    default:new_termios_.c_cflag &= ~PARENB;
+      break; //8N1 default config
+  }
+  /* config baudrate */
+  j = sizeof(std_rate) / 4;
+  for (i = 0; i < j; ++i) {
+    if (std_rate[i] == baudrate_) {
+      /* set standard baudrate */
+      cfsetispeed(&new_termios_, st_baud[i]);
+      cfsetospeed(&new_termios_, st_baud[i]);
+      break;
+    }
+  }
+  /* config stop bit */
+  if (stop_bits_ == 1)
+    new_termios_.c_cflag &= ~CSTOPB;
+  else if (stop_bits_ == 2)
+    new_termios_.c_cflag |= CSTOPB;
+  else
+    new_termios_.c_cflag &= ~CSTOPB; //8N1 default config
+
+/* config waiting time & min number of char */
+  new_termios_.c_cc[VTIME] = 1;
+  new_termios_.c_cc[VMIN] = 18;
+
+  /* using the raw data mode */
+  new_termios_.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+  new_termios_.c_oflag &= ~OPOST;
+
+  /* flush the hardware fifo */
+  tcflush(serial_fd_, TCIFLUSH);
+
+  /* activite the configuration */
+  if ((tcsetattr(serial_fd_, TCSANOW, &new_termios_)) != 0) {
+   #ifdef show_serial_debug
+   printf("failed to activate serial configuration\n");
+    #endif
+    return false;
+  }
+  return true;
+
+}
+
+int SerialDevice::Read(UCHAR *buf, int len) {
+  int ret = -1;
+
+  if (NULL == buf) {
+    return -1;
+  } else {
+    ret = read(serial_fd_, buf, len);
+    
+    while (ret == 0) {
+      #ifdef show_serial_debug
+    printf("Connection closed, try to reconnect.\n");
+     #endif
+      while (!Init()) {
+        usleep(500000);
+      }
+      #ifdef show_serial_debug
+     printf("Reconnect Success.\n");
+      #endif
+      ret = read(serial_fd_, buf, len);
+    }
     return ret;
+  }
 }
 
-UINT CLinuxSerial::WriteData(UCHAR *data, UINT length)
-{
-    if(m_iSerialID < 0)
-        return 0;
-    return write(m_iSerialID,data,length);
+int SerialDevice::Write(const UCHAR *buf, int len) {
+  return write(serial_fd_, buf, len);
 }
-
-UINT CLinuxSerial::GetBytesInCom()
-{
-    return 0;
-}
-
-int CLinuxSerial:: getfd2car()
-{
-    return m_iSerialID;
-}
-
-

@@ -138,7 +138,7 @@ void ArmorDetector::DetectLights(const cv::Mat &src, std::vector<cv::RotatedRect
   	 Mat lookUpTable(1, 256, CV_8U);
         uchar* p = lookUpTable.ptr();
         for( int i = 0; i < 256; ++i)
-        p[i] = saturate_cast<uchar>(pow(i / 255.0, 2.5) * 255.0);
+        p[i] = saturate_cast<uchar>(pow(i / 255.0,5.5) * 255.0);
         Mat res = src.clone();
         LUT(src, lookUpTable, res);
    /* Mat rgb=res.clone();
@@ -173,7 +173,7 @@ cv::split(rgb, bgr_channel);*/
 	else{
 	//	cv::subtract(bgr_channel[0], bgr_channel[1], color_light);
 	//	cv::threshold(2*bgr_channel[0]-bgr_channel[1]-bgr_channel[2], binary_color_diff_img, color_diff_threshold, 255, CV_THRESH_BINARY);
-		inRange(hsvimg, Scalar(90, 125, 125), Scalar(150, 255, 255), binary_color_hsv_img);
+		inRange(hsvimg, Scalar(100, 135, 135), Scalar(140, 255, 255), binary_color_hsv_img);
 		}
 
   	cv::Mat binary_brightness_img; // 亮度二值化
@@ -254,7 +254,8 @@ void ArmorDetector::FilterLights(std::vector<cv::RotatedRect> &lights,const cv::
        
 		if(//80 <= abs(angle) && abs(angle) <= 90   // 高速水平移动的灯条,带有拖影  // 特殊情况,无论横竖, 旧版本有这一行代码
 		    light_aspect_ratio <= 2.5
-		   && armor_light.size.area() >= _para.light_min_area // 1.0
+		   && armor_light.size.area() >= _para.light_min_area&&
+		   armor_light.size.area() <= _para.light_max_area  // 1.0
 		   && armor_light.size.area() < 100000)  //_para.light_max_area * src_img_.size().height * src_img_.size().width) // 0.04
 		{
 			light_rects.push_back(armor_light); // 高速水平移动的灯条
@@ -263,7 +264,8 @@ void ArmorDetector::FilterLights(std::vector<cv::RotatedRect> &lights,const cv::
 #endif
 		}
         // 针对灯条细小的情况, 没有最大比例的判断, 较为理想的灯条
-		else if(armor_light.size.area() >= _para.light_min_area&& // 1.0
+		else if(armor_light.size.area() >= _para.light_min_area&&
+		   armor_light.size.area() <= _para.light_max_area && // 1.0
 		   		 armor_light.size.area() < 100000
 				&& light_aspect_ratio >=2.5  //_para.light_max_area * src_img_.size().height * src_img_.size().width // 0.04
 		   		&& abs(angle) < _para.light_max_angle) // 与垂直的偏角17.5 , 这里是可以取消/2的,进一步细化
@@ -275,7 +277,8 @@ void ArmorDetector::FilterLights(std::vector<cv::RotatedRect> &lights,const cv::
 	    }
         // 检测最为平凡的情况
     	else if (//light_aspect_ratio < _para.light_max_aspect_ratio  // 6.8
-                 armor_light.size.area() >= _para.light_min_area // 1.0
+                 armor_light.size.area() >= _para.light_min_area&&
+		   armor_light.size.area() <= _para.light_max_area  // 1.0
 			     && armor_light.size.area() < _para.light_max_area * src.size().height * src.size().width // 0.04
 			     && abs(angle) < _para.light_max_angle) // 与垂直的偏角35 
         {
@@ -295,6 +298,69 @@ void ArmorDetector::FilterLights(std::vector<cv::RotatedRect> &lights,const cv::
 /**
  * @brief: 多装甲板检测
  */
+
+float parallel(RotatedRect light1, RotatedRect light2) {
+    return std::fabs(light1.angle - light2.angle) / 15.0f;
+};
+
+float shapeSimilarity(RotatedRect light1, RotatedRect light2) {
+    float w1 = light1.size.width, h1 = light1.size.height;
+    float w2 = light2.size.width, h2 = light2.size.height;
+    float minWidth = std::min(w1, w2), minHeight = std::min(h1, h2);
+    return std::fabs(w1 - w2) / minWidth + 0.33333f * std::fabs(h1 - h2) / minHeight;  // FIXME in python
+};
+
+float squareRatio(RotatedRect light1, RotatedRect light2) {
+    float x1 = light1.center.x, y1 = light1.center.y;
+    float x2 = light2.center.x, y2 = light2.center.y;
+    float armorWidth = std::sqrt((x1-x2)*(x1 - x2) + (y1-y2)*(y1 - y2));
+    float armorHeight = 0.5f * (light1.size.height + light2.size.height);
+    float ratio = armorWidth / armorHeight;
+    // FIXME in python: useless abs()
+    return ratio > 0.85 ? std::min((ratio - 2.4f)*(ratio - 2.4f),(ratio - 3.8f)*(ratio - 3.8f)) : 1e6f;
+};
+
+float yDis(RotatedRect light1, RotatedRect light2) {
+    float y1 = light1.center.y, y2 = light2.center.y;
+    // FIXME in python: y coordinates may be negetive
+    return std::fabs((y1 - y2) / std::min(light1.size.height, light2.size.height));
+};
+
+void ArmorDetector::choose_target_from_lights_copy(std::vector<cv::RotatedRect> &lights, std::vector<armor_info> &armor_vector)
+{
+ std::vector<RotatedRect> candidates;
+    for (auto &light: lights)
+        candidates.push_back(light);
+
+    if (candidates.size() < 2) return ;
+
+    
+    size_t iEnd = candidates.size() - 1, jEnd = candidates.size();
+    
+    for (size_t i = 0; i < iEnd; ++i) {
+        for (size_t j = i + 1; j < jEnd; ++j) {
+            auto &l1 = candidates[i], &l2 = candidates[j];
+            float score = squareRatio(l1, l2) * 5.0f
+                          + yDis(l1, l2) * 8.0f
+                          + shapeSimilarity(l1, l2) * 3.0f
+                          + parallel(l1, l2) * 1.2f;
+			if(score<=10)
+			{
+				cv::RotatedRect possible_rect;
+				if (candidates[i].center.x < candidates[j].center.x)
+					possible_rect = boundingRRect(candidates[i],candidates[j]);
+				else
+					possible_rect = boundingRRect(candidates[j],candidates[i]);
+			Armor_Twist armor_twist = MID_MOVE;
+						
+						armor_info armor(possible_rect, armor_twist);
+						armor_vector.push_back(armor);
+			}
+            
+        }
+    }
+}
+
 void ArmorDetector::choose_target_from_lights(std::vector<cv::RotatedRect> &lights, std::vector<armor_info> &armor_vector)
 {
 	// speed_test_reset();
@@ -977,37 +1043,35 @@ float ArmorDetector::armor_svm(Mat& img_roi)
 	float response = svm_big->predict(descriptors);
 	// speed_test_end("armor_svm 用时 = ", "ms");
 	return response;
-}/*
-float ArmorDetector::hhh(cv::RotatedRect& rect)
-{Mat frontImg;float jieguo;
-	float p=max(float(rect.size.height/rect.size.width),float(rect.size.width/rect.size.height));
-	Point2f ve[4];
-rect.points(ve);
-Point2f tl=ve[1],tr=ve[2],dl=ve[0],dr=ve[3];
-	Point2f src[4]{Vec2f(tl), Vec2f(tr), Vec2f(dr), Vec2f(dl)};
-	if(p < 3.5){
-			Point2f dst[4]{Point2f(0.0, 0.0), Point2f(60, 0.0), Point2f(60, 25), Point2f(0.0, 25)};
-	const Mat perspMat = getPerspectiveTransform(src, dst);
-	cv::warpPerspective(gray_img_, frontImg, perspMat, Size(60, 25));
-jieguo=armor_hist_diff(frontImg, rect, 0);
-	
 }
 
-else {
+float ArmorDetector::get_armor_roi(cv::RotatedRect& rect, bool visual)
+{
+    //float val;
+    Mat frontImg;
+	float val;
+	float p=max(float(rect.size.height/rect.size.width),float(rect.size.width/rect.size.height));
+	Point2f ve[4];
+    rect.points(ve);
+    Point2f tl=ve[1],tr=ve[2],dl=ve[0],dr=ve[3];
+	Point2f src[4]{Vec2f(tl), Vec2f(tr), Vec2f(dr), Vec2f(dl)};
+	if(p < 3.0){
+			Point2f dst[4]{Point2f(0.0, 0.0), Point2f(60, 0.0), Point2f(60, 25),Point2f(0.0, 25) };
+	const Mat perspMat = getPerspectiveTransform(src, dst);
+	cv::warpPerspective(gray_img_, frontImg, perspMat, Size(60, 25));
+	val = small_armor_svm(frontImg);}
+	else {
 			Point2f dst[4]{Point2f(0.0, 0.0), Point2f(100, 0.0), Point2f(100, 25), Point2f(0.0, 25)};
 	const Mat perspMat = getPerspectiveTransform(src, dst);
 	cv::warpPerspective(gray_img_, frontImg, perspMat, Size(100, 25));
-jieguo=	armor_hist_diff(frontImg,rect, 0);
-}
-//imshow("q",frontImg);
-//printf("直方图比对结果%f",jieguo);
-return jieguo;
-}*/
-float ArmorDetector::get_armor_roi(cv::RotatedRect& rect, bool visual)
-{
+	val = armor_svm(frontImg);}
 
 
-	auto center = rect.center;
+	//if(visual)
+	//{
+		imshow("svm_mat",frontImg);
+	//}
+	/*auto center = rect.center;
 	cv::Mat rot_mat = cv::getRotationMatrix2D(rect.center, rect.angle, 1); 
 	cv::Mat img;
 	warpAffine(gray_img_, img, rot_mat, img.size(), INTER_LINEAR, BORDER_CONSTANT); // warpAffine use 2ms
@@ -1024,8 +1088,8 @@ float ArmorDetector::get_armor_roi(cv::RotatedRect& rect, bool visual)
 		float ratio = wh/gh;
 
 		// 这里简单地根据装甲片的长宽比例判定了大小装甲，然后最终用的是SVM分类器
-		float val;
-		if(ratio < 3.5){
+		
+		if(ratio < 3){
 			
 			val = small_armor_svm(armor_roi);}
 		else
@@ -1033,9 +1097,8 @@ float ArmorDetector::get_armor_roi(cv::RotatedRect& rect, bool visual)
 	}
 		// std::cout << "svm lebel:" << val << std::endl;
 		return val;
-	}
-	else
-		return 0;
+	}*/
+	return val;
 }
 
 void ArmorDetector::FilterArmors(std::vector<armor_info> &armors,const cv::Mat &src) 
@@ -1098,14 +1161,14 @@ void ArmorDetector::FilterArmors(std::vector<armor_info> &armors,const cv::Mat &
 		}
 	}
 
-    for (int i=0;i <armors.size();i++){
+    /*for (int i=0;i <armors.size();i++){
 		if (is_armor[i])
 				{
 					if(std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height)>=src_img_.size().width/2)
 				is_armor[i]=false;
 				//printf("=============%f============\n%d   %d\n",std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height),src.size().width,src.size().height)
 				;}
-	}
+	}*/
 
    
 	filte_rects.clear();
@@ -1364,17 +1427,33 @@ if(armors.size()>0){
 filte_rects.clear();
 for( int i = 0; i < armors.size();i++)
 	{
-		if(i==idx)
+		if(i==idx&&get_armor_roi(armors.at(i).rect,0)>0)
 		{double armor_ratio = std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height) / 
 							  std::min(armors.at(i).rect.size.width, armors.at(i).rect.size.height);
 		 filte_rects.push_back(armors[i]);
 		// printf("最终选定%d",i);
+		printf("svmresult%f",get_armor_roi(armors.at(i).rect,-0.1));
 		//printf("\n----尺寸大小为%f-----\n",armor_ratio);
 		#ifdef SHOW_DEBUG_IMG
 		printf("\n======宽度%f尺寸%f======\n",std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height),armor_ratio);
 		 #endif
 		 history_point=armors[i].rect.center;
 		 his_size=armor_ratio;}
+		 else if(i==idx&&get_armor_roi(armors.at(i).rect,1)>-0.3)
+		 {
+		double armor_ratio = std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height) / 
+							  std::min(armors.at(i).rect.size.width, armors.at(i).rect.size.height);
+		armors.at(i).state=FAST_MOVE;
+        filte_rects.push_back(armors[i]);
+		printf("svmresult%f",get_armor_roi(armors.at(i).rect,0));
+		//printf("\n----尺寸大小为%f-----\n",armor_ratio);
+		#ifdef SHOW_DEBUG_IMG
+		//printf("\n======宽度%f尺寸%f======\n",std::max(armors.at(i).rect.size.width, armors.at(i).rect.size.height),armor_ratio);
+		 #endif
+		 history_point=armors[i].rect.center;
+		 his_size=armor_ratio;
+
+		 }
 	}
 	armors = filte_rects;}
 //	speed_test_reset();
@@ -1407,13 +1486,18 @@ static int cnt = 0;  // 临时写的，用同一段视频调试时，根据有�
 bool ArmorDetector::detect(cv::Mat & src, std::vector<armor_info> & armors_candidate) {
 	// speed_test_reset();
 	std::vector<cv::RotatedRect> lights;
+	// speed_test_reset();
     DetectLights(src, lights);   //  5ms
-	if (lights.size() > 200) return false; // 防止被敌方激光瞄到视野（画面内太多红光确实会一下子灯条数量爆表，然后程序崩掉）
+	// speed_test_end(" detlit cost = ", "ms");
+	if (lights.size() > 150) return false; // 防止被敌方激光瞄到视野（画面内太多红光确实会一下子灯条数量爆表，然后程序崩掉）
 	//speed_test_reset();
 	FilterLights(lights,src);        //  0.1ms
 
 	if (lights.size() > 1)
 	{  src_img_=src.clone();
+	
+	    // choose_target_from_lights_copy(lights, armors_candidate);
+	
 		choose_target_from_lights(lights, armors_candidate);  // 0.001 ms
 		// for(auto armor : armors_candidate) draw_rotated_rect(src, armor.rect, Scalar(0,0,255), 2);
 		// std::cout << "before filter:" << armors_candidate.size() <<std::endl;
@@ -1428,6 +1512,7 @@ bool ArmorDetector::detect(cv::Mat & src, std::vector<armor_info> & armors_candi
 		*/
 	    
 		FilterArmors(armors_candidate,src);
+		
 		/*
 		for(int i =0;i < armors_candidate.size();++i)
 		{

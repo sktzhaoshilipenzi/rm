@@ -9,7 +9,7 @@
 #include <chrono>
 #include <thread> 
 #include "common/common_serial.h"
-
+#include <cstring>
 namespace autocar
 {
 namespace serial_mul
@@ -18,7 +18,7 @@ namespace serial_mul
 #define show_serial_listen
 #define show_serial_publish
 
-CLinuxSerial serial(0);
+SerialDevice serial("/dev/robomaster", 115200);
 short Yaw    = 0;
 short Pitch  = 0;
 short yaw_v  = 0;
@@ -37,7 +37,7 @@ short get_pitchv()
 {
     short a=pitch_v;
     float b=float(a);
-    printf("%fpitch_v",b);
+    
     return a;
     
 }
@@ -45,18 +45,30 @@ short get_yawv()
 {
     short b=yaw_v;
     float a=float(b);
-    printf("%fyaw_v",a);
+   
     return b;
 }
 void listen2car()
 {
     while(1)
-    {
+    {  
+        unsigned char buffread_fix[11];
+        unsigned char buffread[11];
         unsigned char data[11];// = {0xDA,
                               //   0x00,0x00,  // Yaw
                               //   0x00,0x00,  // Pitch
                               //   0xDB};
-        serial.ReadData(data, 11);
+        serial.Read(buffread, 11);
+        int len=sizeof(data);
+        for(int i = 0; i < len; ++i)
+      {
+        if(buffread[i] == 0xDA)
+        {
+          memcpy(buffread_fix, buffread + i, len - i);
+          memcpy(buffread_fix + len - i, buffread, i);
+          memcpy(&data, buffread_fix, len);        
+        }
+      }
         // 这里可能需要一个标志位,告诉我旋转...
         if (data[0] == 0xDA && data[10] == 0xDB)
         {
@@ -66,7 +78,7 @@ void listen2car()
             pitch_v=(data[7]<<8)+data[8];
         }
 #ifdef show_serial_listen
-      //  std::cout << "陀螺仪\tYaw: "<< Yaw/100.0 << "\tPitch: "<< Pitch/100.0 << std::endl;
+        std::cout << "陀螺仪\tYaw: "<< Yaw/100.0 << "\tPitch: "<< Pitch/100.0 << std::endl;
 #endif
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
@@ -81,14 +93,14 @@ void publish2car(const vision_mul::armor_pos& pos, short _yaw, short _pitch)
                                    0x00,        // 距离
                                    0xFE};       // 尾
     send_bytes[1] = pos.Flag;     // 标志位
-    send_bytes[6] = pos.angle_z;  // 距离信息
+    send_bytes[6] = 0.1*pos.angle_z;  // 距离信息
     
     short* data_ptr = (short *)(send_bytes + 2); // 16位指针指向第一个数据
     
-    data_ptr[0] = _yaw   - static_cast<short>((pos.angle_x) * 100);
+    data_ptr[0] = _yaw   + static_cast<short>((pos.angle_x) * 100);
     data_ptr[1] = _pitch - static_cast<short>((pos.angle_y) * 100);
 
-    serial.WriteData(send_bytes, 8);
+    serial.Write(send_bytes, 8);
 #ifdef show_serial_publish
     std::cout << "send_data...\t" << pos.Flag  << "\t\t"
               << Yaw/100.0 <<" - " << pos.angle_x << "\t\t"

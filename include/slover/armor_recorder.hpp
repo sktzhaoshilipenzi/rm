@@ -41,17 +41,19 @@ public:
     Armor_recorder(int _history_size = 5): history_size(_history_size) 
     { 
         recorder_time = std::chrono::steady_clock::now();
-       std::vector<float> Pre_vels_(9);
-       list_vx=Pre_vels_;
-       std::vector<float> Pre_z(7);
-       list_z=Pre_z;
-       list_z_copy=Pre_z;
+       std::vector<float> Pre_vels_(15);
+       //list_vx=Pre_vels_;
+       //std::vector<float> Pre_z(7);
+       //list_z=Pre_z;
+       //list_z_copy=Pre_z;
        list_x=Pre_vels_;
        list_x_copy=list_x;
+       bhv=Move;
     }
-    void   set_kalman_seed(cv::KalmanFilter km){km_=km;};
+    enum ENemy_bhv { Move=0,Rotated=1,Cat_pace=2 }; 
+    //void   set_kalman_seed(cv::KalmanFilter km){km_=km;};
     double point_dist(const cv::Point2f & p1, const cv::Point2f & p2){ return std::sqrt((p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y)); }
-    void kalman_predict(cv::Point2f &last_point,cv::KalmanFilter &klaman,vision_mul::armor_info &armor_bf_predict,vision_mul::armor_info &armor_predict,bool &flag,float realxdiff,float realydiff,cv::RotatedRect &real_rect);
+    void rotated_check(cv::Point2f &last_point,vision_mul::armor_info &armor_bf_predict,vision_mul::armor_info &armor_predict,bool &flag,cv::RotatedRect &real_rect);
     vision_mul::armor_pos SlectFinalArmor(std::vector<vision_mul::armor_info> &armors, AngleSolver& angle_slover, AngleSolverFactory& angle_slover_factory,cv::Mat&);
     void setLastResult(/*vision_mul::armor_info last_armor,*/ vision_mul::armor_pos last_pos, double time)
     {
@@ -72,11 +74,11 @@ public:
         }
         recorder_time = std::chrono::steady_clock::now();
     }
-    float PreFilter(float Pre_vel,float x_filter);
+    float PreFilter(float x_filter);
     
-    float preFilter_for_z(float Pre_z);
-    float get_midum_z();
-    float get_medum_x(){return list_x_copy[4];};
+  //  float preFilter_for_z(float Pre_z);
+  //  float get_midum_z();
+  //  float get_medum_x(){return list_x_copy[4];};
     void clear(){
         //history_armor.clear();
         //history_time.clear();
@@ -97,6 +99,7 @@ public:
     std::chrono::steady_clock::time_point recorder_time;
 
     // std::list<vision_mul::armor_info> history_armor;
+    ENemy_bhv bhv;
     std::list<vision_mul::armor_pos> history_pos;
     short current_pitch_v;
     short current_yaw_v;
@@ -105,25 +108,16 @@ public:
     int k;//滤波初始化检测因子
     int detect_cnt;
     int miss_detection_cnt;
-    float last_x_diff;
-    float last_y_diff;
-    cv::KalmanFilter km_;
-    double predict(double time);
+    //cv::KalmanFilter km_;
+    //double predict(double time);
     cv::Point2f last_dst_point;
-    cv::Point2f his_last_point;
-    std::vector<float> list_vx;
-    std::vector<float> list_vx_copy;
-    std::vector<float> list_z;
-    std::vector<float> list_z_copy;
     std::vector<float> list_x;
     std::vector<float> list_x_copy;
-    float max_vx;
-    float op_max_vx;
-    float his_max_vx;
     vision_mul::armor_info last_armorinfo;
     int tiaobian_cnt;
     int check_rota_cnt;
     float last_angle;
+    int mode_detect;
 };
 
 } // namespace slover
